@@ -3,16 +3,17 @@
 #include <stdio.h>
 #include <math.h> 
 
-int roadW = 3000;
+int roadW = 2000;
 int segL = 200;
 float camD = 0.84;
-int width = 1024;
-int height = 768;
+int width = 990;
+int height = 540;
 int roadLength = 10000;
-float acceleration = 0.243 ;
+float acceleration = 0.5;
 float speed = 0;
-int maxSpeed = 10000000;
+int maxSpeed = 500;
 int playerX = 0;
+int incline = 0;
 FILE *myfile;
 
 
@@ -28,7 +29,6 @@ void project(struct Line* self, int camX,int camY,int camZ)
     self -> scale = camD/((self -> z)-camZ);
     fprintf(myfile, "SCALE: %f / (%f - %d) = %f\n", camD, self -> z, camZ, self -> scale);
     self -> X = (1 + (self -> scale) *((self -> x) - camX)) * width/2;
-    //self -> Y = (1 - (self -> scale) *((self -> y) - camY)) * height/2;
     self -> Y = (height/2) - (height/2) * (((self -> y) - camY) * self -> scale);
     fprintf(myfile, "Y: (%d / 2) - (%d / 2) * ((%f - %d) * %f) = %f\n", height, height, self -> y, camY, self -> scale, self -> Y);
     self -> W = (self -> scale) * roadW  * width/2;
@@ -38,7 +38,7 @@ void project(struct Line* self, int camX,int camY,int camZ)
 void drawQuad(Color color, int x1, int y1, int w1, int x2, int y2, int w2){
 
     Vector2 vec[] = { { x2 - w2, y2}, {x1 - w1, y1 }, { x1 + w1, y1}, { x2 + w2, y2} };
-	DrawTriangleFan( vec, 4, color );
+	  DrawTriangleFan( vec, 4, color );
 
 
 }
@@ -59,7 +59,9 @@ int main() {
        line.x = 0;
        line.y = 0;
        line.curve = 0;
-       if (i > 100 && i < 500) line.curve = 5;
+       if (i > 100 && i < 500) line.curve = 2;
+       if (i > 700 && i < 1100) line.curve = -4;
+       if (i > 1600 && i < 2000) line.curve = -1;
        lines[i] = line;
      }
 
@@ -67,11 +69,12 @@ int main() {
     float pos = 0;
 
     while (!WindowShouldClose()) {
-
-    if (IsKeyDown(KEY_RIGHT)) playerX += 100;
-    if (IsKeyDown(KEY_LEFT)) playerX -= 100;
-    if (IsKeyDown(KEY_UP) && speed <= maxSpeed) speed += acceleration;
-    else if (IsKeyDown(KEY_DOWN) && speed >= -maxSpeed) speed -= acceleration;
+    if (IsKeyDown(KEY_RIGHT)) playerX += fmin((0.5 * speed), 100);
+    if (IsKeyDown(KEY_LEFT)) playerX -= fmin((0.5 * speed), 100);
+    if (IsKeyDown(KEY_UP) && speed <= 0) speed += acceleration * 10;
+    if (IsKeyDown(KEY_UP) && speed <= maxSpeed) speed +=  acceleration;
+    else if (IsKeyDown(KEY_DOWN) && speed >= 0) speed -= acceleration * 10;
+    else if (IsKeyDown(KEY_DOWN) && speed >= -maxSpeed) speed -=  acceleration;
     else if (speed < 0){
       speed += acceleration;
     }
@@ -79,18 +82,18 @@ int main() {
       speed -= acceleration;
     }
     pos += speed;
-        
+    printf("%f\n", speed);
     
 		BeginDrawing();
 		ClearBackground(SKY); 
     int startPos = pos/segL;
     float x = 0, dx = 0;
 
-
-    float temp;
     fprintf(myfile, "NEW STRING\n");
 
-    int flag = 0;
+
+    playerX -= lines[startPos%N].curve * speed * 0.1;
+
 
     for(int n = startPos; n < (startPos + 100); n++)  
             {
@@ -99,12 +102,7 @@ int main() {
                 x+=dx;
                 dx += l -> curve;
                 l -> x = x;
-
-                if (!flag){
-                  playerX -= dx * speed * 0.1;
-                  flag = 1;
-                }
-                printf("%f\n", dx);
+                
                 project(l, playerX, 1500, pos);
 
                 Color grass  = (n/3)%2 ? (Color){170, 166, 165, 255 }: (Color){195, 197, 209, 255};
